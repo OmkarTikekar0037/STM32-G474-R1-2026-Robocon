@@ -4,6 +4,7 @@
  *  Created on: Apr 18, 2026
  *      Author: F.R.I.D.A.Y
  */
+
 #include "mpu.h"
 #include "main.h"
 #include "math.h"
@@ -14,13 +15,21 @@
 #define ACCEL_XOUT_H    0x3B
 #define GYRO_ZOUT_H     0x47
 
-/* ===== Internal Variables ===== */
+/* ===== Public Output ===== */
 float yaw = 0.0f;
-static float yaw_gyro = 0.0f;
 
+/* ===== Internal Variables ===== */
+static float yaw_gyro = 0.0f;
 float gyro_z_offset = 0.0f;
 
 static uint32_t imu_prev = 0;
+
+/* ===== Yaw Hold Variables ===== */
+static float heldYaw = 0.0f;
+static uint8_t yawLocked = 0;
+
+static float prevYaw = 0.0f;
+static uint16_t stableCount = 0;
 
 /* ===== Low-level helpers ===== */
 
@@ -39,9 +48,7 @@ static void readRegisters(uint8_t reg, uint8_t count, uint8_t *data)
 void MPU_Init(void)
 {
     HAL_Delay(100);
-
     writeRegister(PWR_MGMT_1, 0x00);
-
     imu_prev = HAL_GetTick();
 }
 
@@ -70,7 +77,6 @@ void MPU_Update(void)
     readRegisters(ACCEL_XOUT_H, 14, rawData);
 
     int16_t gz = (rawData[12] << 8) | rawData[13];
-
     float Gz = (gz / 131.0f) - gyro_z_offset;
 
     uint32_t now = HAL_GetTick();
@@ -80,8 +86,34 @@ void MPU_Update(void)
     if (dt <= 0 || dt > 0.1f)
         dt = 0.01f;
 
+    /* ---- Yaw Integration ---- */
     yaw_gyro += Gz * dt;
-    yaw = yaw_gyro;
+    float currentYaw = yaw_gyro;
+
+    /* ---- Yaw Hold Logic ---- */
+    float diff = fabsf(currentYaw - prevYaw);
+
+    if (diff < 0.03f)   // threshold (tune if needed)
+    {
+        stableCount++;
+    }
+    else
+    {
+        stableCount = 0;
+        yawLocked = 0;
+    }
+
+    if (stableCount > 50 && !yawLocked)
+    {
+        heldYaw = currentYaw;
+        yawLocked = 1;
+    }
+
+    prevYaw = currentYaw;
+
+    /* ---- Final Output ---- */
+    if (yawLocked)
+        yaw = heldYaw;
+    else
+        yaw = currentYaw;
 }
-
-
