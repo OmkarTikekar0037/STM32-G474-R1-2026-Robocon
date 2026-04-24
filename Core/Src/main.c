@@ -82,6 +82,13 @@ int16_t wheel[4];   // FL, FR, BL, BR
 //UART data
 uint8_t rx_byte;
 volatile uint8_t uart_line_ready = 0;
+<<<<<<< HEAD
+=======
+
+
+char cdc_buf[128];
+
+>>>>>>> 90d3c38 (Added function for cdc Printing and debugging)
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,6 +109,19 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+<<<<<<< HEAD
+=======
+
+
+uint8_t CDC_Print(char *msg)
+{
+    uint8_t ret = CDC_Transmit_FS((uint8_t*)msg, strlen(msg));
+
+    // Don't block forever (important for control loop)
+    return ret;
+}
+
+>>>>>>> 90d3c38 (Added function for cdc Printing and debugging)
 void recombination(uint8_t *p){
 	ry = (uint16_t)p[0]-128;
 	rx = (uint16_t)p[1]-128;
@@ -227,7 +247,27 @@ int main(void)
 	        	 lx = 0;
 	         }
 
+<<<<<<< HEAD
 	     }
+=======
+
+	     }
+	         static uint32_t lastPrint = 0;
+
+	         if (HAL_GetTick() - lastPrint >= 100)   // 10 Hz
+	         {
+	             lastPrint = HAL_GetTick();
+
+	             int len = snprintf(cdc_buf, sizeof(cdc_buf),
+	                 "LX:%d RY:%d RX:%d | YAW:%.2f | W:%d %d %d %d\r\n",
+	                 lx, ry, rx,
+	                 yaw,
+	                 wheel[0], wheel[1], wheel[2], wheel[3]
+	             );
+
+	             CDC_Transmit_FS((uint8_t*)cdc_buf, len);
+	         }
+>>>>>>> 90d3c38 (Added function for cdc Printing and debugging)
 
   }
     /* USER CODE END WHILE */
